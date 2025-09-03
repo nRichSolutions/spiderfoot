@@ -1,0 +1,61 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Docker build
+
+# Controls when the action will run.
+on:
+  workflow_dispatch:
+    tags:
+      - "v*"
+  # Allows you to run this workflow manually from the Actions tab
+  push:
+    branches:
+      - "dev"
+      - "main"
+    tags:
+      - "v*"
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+        name: Set up Docker Buildx
+
+      - uses: docker/setup-buildx-action@v1
+
+        name: Login to DockerHub
+      - uses: docker/login-action@v1
+        with:
+          registry: gcr.io
+          username: _json_key
+          password: ${{ secrets.GCR_JSON_KEY }}
+      - name: Docker meta
+        id: meta
+        uses: crazy-max/ghaction-docker-meta@v2
+        with:
+          images: gcr.io/xplor-2025/spiderfoot
+          tags: |
+            type=ref,event=branch
+            type=sha
+          flavor: latest=auto
+
+      - name: Build and push
+        id: docker_build
+        uses: docker/build-push-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.TEST }}
+        with:
+          context: src
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          file: src/Dockerfile
+      - name: Image digest
+        run: echo ${{ steps.docker_build.outputs.digest }}
