@@ -2,38 +2,45 @@ name: Tests
 
 on:
   push:
-    branches: master
+    branches: ["main", "dev", "master"]
   pull_request:
-    branches: master
+    branches: ["main", "dev", "master"]
 
 jobs:
   build:
-
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.7", "3.8", "3.9", "3.10"]
+        python-version: ["3.10", "3.11"]
         os: [ubuntu-latest, macos-latest]
 
     steps:
-      - uses: actions/checkout@v2
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install flake8 pytest
-          pip install -r test/requirements.txt
+          if [ -f test/requirements.txt ]; then pip install -r test/requirements.txt; fi
+
       - name: Lint with flake8
         run: |
-          # stop the build if there are Python Flake8 violations
           flake8 . --count --show-source --statistics
+
       - name: Test with pytest
         run: |
-          python -m pytest -n auto --dist loadfile --ignore=test/integration/modules/ --durations=5 --cov-report term --cov=. .
-      - uses: codecov/codecov-action@v1
+          python -m pytest -n auto --dist loadfile --ignore=test/integration/modules/ --durations=5 --cov-report=term --cov=. .
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: false
           verbose: true
